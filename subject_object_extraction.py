@@ -1,5 +1,4 @@
 from nltk.stem.wordnet import WordNetLemmatizer
-from spacy.lang.en import English
 
 SUBJECTS = ["nsubj", "nsubjpass", "csubj", "csubjpass", "agent", "expl"]
 OBJECTS = ["dobj", "dative", "attr", "oprd"]
@@ -131,9 +130,10 @@ def getAllObjs(v):
         objs.extend(getObjsFromConjunctions(objs))
     return v, objs
 
-def findSVOs(tokens):
+def findSVOs(tokens, output="str"):
     svos = []
-    verbs = [tok for tok in tokens if tok.pos_ == "VERB" and tok.dep_ != "aux"]
+    # verbs = [tok for tok in tokens if tok.pos_ == "VERB" and tok.dep_ != "aux"]
+    verbs = [tok for tok in tokens if tok.dep_ != "AUX"]
     for v in verbs:
         subs, verbNegated = getAllSubs(v)
         # hopefully there are subs, if not, don't examine this verb any longer
@@ -142,7 +142,15 @@ def findSVOs(tokens):
             for sub in subs:
                 for obj in objs:
                     objNegated = isNegated(obj)
-                    svos.append((sub.lower_, "!" + v.lower_ if verbNegated or objNegated else v.lower_, obj.lower_))
+                    
+                    if output is "str":
+                        element = (
+                            sub.lower_, "!" + v.lower_ if verbNegated or objNegated else v.lower_, obj.lower_
+                        )
+                    elif output is "obj":
+                        element = (sub, (v, verbNegated or objNegated), obj)
+                    
+                    svos.append(element)
     return svos
 
 def getAbuserOntoVictimSVOs(tokens):
@@ -167,7 +175,9 @@ def printDeps(toks):
         print(tok.orth_, tok.dep_, tok.pos_, tok.head.orth_, [t.orth_ for t in tok.lefts], [t.orth_ for t in tok.rights])
 
 def testSVOs():
-    nlp = English()
+    import spacy 
+
+    nlp = spacy.load("en_core_web_md")
 
     tok = nlp("making $12 an hour? where am i going to go? i have no other financial assistance available and he certainly won't provide support.")
     svos = findSVOs(tok)
